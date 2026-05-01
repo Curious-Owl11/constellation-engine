@@ -1,0 +1,1230 @@
+---
+// Static site generation - page generated at build time
+const { id } = Astro.params;
+const clientId = id ?? 'rachel';
+
+// For static builds with dynamic routes, we need to specify which paths to generate
+export function getStaticPaths() {
+  return [
+    { params: { id: 'rachel' } }
+  ];
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d0d1a" />
+  <meta name="description" content="Interactive career graph visualization - skills, roles, and pathways" />
+  <link rel="manifest" href="/manifest.json" />
+  <title>Career Constellation — {clientId}</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0d0d1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      height: 100vh;
+      position: relative;
+    }
+
+    #cy-container {
+      flex: 1;
+      height: 100vh;
+      background: #0d0d1a;
+    }
+
+    /* Detail panel */
+    #detail-panel {
+      width: 320px;
+      height: 100vh;
+      background: rgba(13, 13, 26, 0.95);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 48px 20px 24px;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      backdrop-filter: blur(8px);
+      position: relative;
+    }
+
+    #detail-panel.open {
+      display: flex;
+    }
+
+    #detail-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #e0e0ff;
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+
+    #detail-close:hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .detail-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .badge-Person  { background: rgba(240,192,64,0.15);  color: #f0c040; border: 1px solid rgba(240,192,64,0.5); }
+    .badge-Skill   { background: rgba(64,224,208,0.15);  color: #40e0d0; border: 1px solid rgba(64,224,208,0.5); }
+    .badge-Role    { background: rgba(147,112,219,0.15); color: #9370db; border: 1px solid rgba(147,112,219,0.5); }
+    .badge-Unknown { background: rgba(160,160,200,0.1);  color: #a0a0c8; border: 1px solid rgba(160,160,200,0.3); }
+
+    #detail-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+
+    #detail-connections h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666888;
+      margin-bottom: 10px;
+    }
+
+    #connection-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #connection-list li {
+      font-size: 13px;
+      color: #b0b0d0;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px;
+      border-left: 3px solid rgba(255,255,255,0.08);
+    }
+
+    /* Empty state */
+    #empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      display: none;
+    }
+
+    #empty-state .star {
+      font-size: 60px;
+      opacity: 0.2;
+      margin-bottom: 16px;
+      display: block;
+      line-height: 1;
+    }
+
+    #empty-state h2 {
+      font-size: 22px;
+      color: rgba(200, 200, 255, 0.4);
+      font-weight: 400;
+      margin-bottom: 10px;
+    }
+
+    #empty-state p {
+      font-size: 13px;
+      color: rgba(140, 140, 180, 0.35);
+      line-height: 1.6;
+    }
+
+    /* Header bar */
+    #header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      background: rgba(13, 13, 26, 0.75);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+      gap: 12px;
+    }
+
+    #header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(220,220,255,0.85);
+      letter-spacing: 0.3px;
+    }
+
+    .client-pill {
+      font-size: 12px;
+      padding: 2px 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      color: rgba(180,180,220,0.6);
+      border: 1px solid rgba(255,255,255,0.09);
+    }
+
+    #node-count {
+      margin-left: auto;
+      font-size: 12px;
+      color: rgba(140,140,180,0.45);
+    }
+
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(180,180,220,0.35);
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Tour: Narration Panel ── */
+    #tour-narration {
+      position: absolute;
+      bottom: 90px;
+      left: 24px;
+      max-width: 360px;
+      background: rgba(10, 10, 22, 0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 16px 20px;
+      backdrop-filter: blur(12px);
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    #tour-narration.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #tour-narration p {
+      font-size: 14px;
+      line-height: 1.65;
+      color: rgba(220,220,255,0.90);
+    }
+
+    /* ── Tour: Controls Bar ── */
+    #tour-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(10, 10, 22, 0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 40px;
+      padding: 10px 20px;
+      backdrop-filter: blur(12px);
+      z-index: 20;
+      user-select: none;
+    }
+
+    .tour-btn {
+      background: none;
+      border: none;
+      color: rgba(200,200,255,0.7);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      line-height: 1;
+      transition: color 0.2s, background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tour-btn:hover {
+      color: #ffffff;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .tour-btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+      background: none;
+    }
+
+    #tour-divider {
+      width: 1px;
+      height: 20px;
+      background: rgba(255,255,255,0.12);
+      margin: 0 4px;
+    }
+
+    /* Progress dots */
+    #tour-progress {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 4px;
+    }
+
+    .tour-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: background 0.3s, transform 0.3s;
+    }
+
+    .tour-dot.active {
+      background: #a0c4ff;
+      transform: scale(1.4);
+    }
+
+    .tour-dot.done {
+      background: rgba(160,196,255,0.45);
+    }
+
+    #tour-step-label {
+      font-size: 11px;
+      color: rgba(160,160,200,0.55);
+      min-width: 52px;
+      text-align: center;
+    }
+
+    /* ── View Switcher ── */
+    #view-switcher {
+      position: absolute;
+      top: 62px;
+      left: 20px;
+      display: flex;
+      gap: 4px;
+      background: rgba(10, 10, 22, 0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      padding: 6px;
+      backdrop-filter: blur(12px);
+      z-index: 15;
+    }
+
+    .view-btn {
+      background: none;
+      border: none;
+      color: rgba(200,200,255,0.5);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      transition: all 0.25s ease;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .view-btn:hover {
+      color: rgba(220,220,255,0.85);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .view-btn.active {
+      color: #ffffff;
+      background: rgba(160,196,255,0.18);
+      border: 1px solid rgba(160,196,255,0.3);
+      box-shadow: 0 0 12px rgba(160,196,255,0.15);
+    }
+
+    /* ── What-If Mode ── */
+    #whatif-toggle {
+      position: absolute;
+      top: 62px;
+      right: 20px;
+      background: rgba(10, 10, 22, 0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      padding: 8px 18px;
+      backdrop-filter: blur(12px);
+      z-index: 15;
+      color: rgba(200,200,255,0.6);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      transition: all 0.25s ease;
+    }
+
+    #whatif-toggle:hover {
+      color: rgba(220,220,255,0.85);
+      background: rgba(255,255,255,0.05);
+    }
+
+    #whatif-toggle.active {
+      color: #ffd700;
+      background: rgba(255,215,0,0.12);
+      border: 1px solid rgba(255,215,0,0.3);
+      box-shadow: 0 0 12px rgba(255,215,0,0.15);
+    }
+
+    #whatif-input-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(10, 10, 22, 0.95);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 24px;
+      backdrop-filter: blur(16px);
+      z-index: 30;
+      display: none;
+      min-width: 320px;
+    }
+
+    #whatif-input-modal.open {
+      display: block;
+    }
+
+    #whatif-input-modal h3 {
+      font-size: 14px;
+      color: rgba(220,220,255,0.9);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    #whatif-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: #ffffff;
+      font-size: 13px;
+      font-family: inherit;
+      margin-bottom: 16px;
+    }
+
+    #whatif-input:focus {
+      outline: none;
+      border-color: rgba(255,215,0,0.4);
+      background: rgba(255,255,255,0.08);
+    }
+
+    #whatif-input-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .whatif-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      padding: 8px 16px;
+      color: rgba(200,200,255,0.8);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .whatif-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: #ffffff;
+    }
+
+    .whatif-btn.primary {
+      background: rgba(255,215,0,0.15);
+      border-color: rgba(255,215,0,0.3);
+      color: #ffd700;
+    }
+
+    .whatif-btn.primary:hover {
+      background: rgba(255,215,0,0.25);
+    }
+
+    /* Pulse animation for gap nodes */
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 8px rgba(255,215,0,0.3);
+        opacity: 1;
+      }
+      50% {
+        box-shadow: 0 0 20px rgba(255,215,0,0.6);
+        opacity: 0.85;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="cy-container" data-client-id={clientId}></div>
+
+    <div id="detail-panel">
+      <button id="detail-close">✕ Close</button>
+      <div id="detail-name"></div>
+      <div id="detail-type"></div>
+      <div id="detail-connections">
+        <h3>Connections</h3>
+        <ul id="connection-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="header">
+    <h1>Career Constellation</h1>
+    <span class="client-pill">{clientId}</span>
+    <span id="node-count"></span>
+  </div>
+
+  <!-- View switcher -->
+  <div id="view-switcher" aria-label="Layout views">
+    <button class="view-btn active" data-view="constellation">Constellation</button>
+    <button class="view-btn" data-view="tree">Skill Tree</button>
+    <button class="view-btn" data-view="circular">Circular</button>
+    <button class="view-btn" data-view="biofabric">BioFabric</button>
+    <button class="view-btn" data-view="arc">Arc Diagram</button>
+  </div>
+
+  <!-- What-if mode toggle -->
+  <button id="whatif-toggle">✨ What-If Mode</button>
+
+  <!-- What-if input modal -->
+  <div id="whatif-input-modal">
+    <h3>Add Hypothetical Skill</h3>
+    <input type="text" id="whatif-input" placeholder="Enter skill name (e.g., Python, Leadership)" />
+    <div id="whatif-input-buttons">
+      <button class="whatif-btn" id="whatif-cancel">Cancel</button>
+      <button class="whatif-btn primary" id="whatif-add">Add Skill</button>
+    </div>
+  </div>
+
+  <div id="loading">Loading constellation…</div>
+  <div id="empty-state">
+    <span class="star">✦</span>
+    <h2>No graph data yet</h2>
+    <p>Career data for <strong style="color:rgba(200,200,255,0.5)">{clientId}</strong> hasn't been seeded yet.<br/>Run the career graph seed job to populate this constellation.</p>
+  </div>
+
+  <!-- Tour narration overlay -->
+  <div id="tour-narration" aria-live="polite">
+    <p id="tour-narration-text"></p>
+  </div>
+
+  <!-- Tour controls bar -->
+  <div id="tour-controls" aria-label="Tour controls">
+    <button class="tour-btn" id="tour-btn-prev" title="Previous step" disabled>&#9664;</button>
+    <button class="tour-btn" id="tour-btn-play" title="Play tour">&#9654;</button>
+    <button class="tour-btn" id="tour-btn-next" title="Next step">&#9654;&#9654;</button>
+    <div id="tour-divider"></div>
+    <div id="tour-progress"></div>
+    <span id="tour-step-label">— / —</span>
+    <div id="tour-divider" style="display:none"></div>
+    <button class="tour-btn" id="tour-btn-replay" title="Restart tour">&#8635;</button>
+  </div>
+
+  <script>
+    import cytoscape from 'cytoscape';
+    import dagre from 'cytoscape-dagre';
+    import cola from 'cytoscape-cola';
+    import { TourEngine } from '../../lib/tour-engine';
+    import demoTour from '../../lib/demo-tour.json';
+
+    // Register layout extensions
+    cytoscape.use(dagre);
+    cytoscape.use(cola);
+
+    const cyContainer = document.getElementById('cy-container') as HTMLElement;
+    const clientId = cyContainer.dataset['clientId'] ?? 'rachel';
+
+    const COLORS: Record<string, string> = {
+      Person:  '#f0c040',
+      Skill:   '#40e0d0',
+      Role:    '#9370db',
+      default: '#a0a0c8',
+    };
+
+    const loadingEl  = document.getElementById('loading')!;
+    const emptyEl    = document.getElementById('empty-state')!;
+    const countEl    = document.getElementById('node-count')!;
+    const panel      = document.getElementById('detail-panel')!;
+    const nameEl     = document.getElementById('detail-name')!;
+    const typeEl     = document.getElementById('detail-type')!;
+    const connList   = document.getElementById('connection-list')!;
+    const closeBtn   = document.getElementById('detail-close')!;
+
+    // Tour UI elements
+    const narrationEl     = document.getElementById('tour-narration')!;
+    const narrationTextEl = document.getElementById('tour-narration-text')!;
+    const progressEl      = document.getElementById('tour-progress')!;
+    const stepLabelEl     = document.getElementById('tour-step-label')!;
+    const btnPlay         = document.getElementById('tour-btn-play') as HTMLButtonElement;
+    const btnPrev         = document.getElementById('tour-btn-prev') as HTMLButtonElement;
+    const btnNext         = document.getElementById('tour-btn-next') as HTMLButtonElement;
+    const btnReplay       = document.getElementById('tour-btn-replay') as HTMLButtonElement;
+
+    // What-if mode elements
+    const whatifToggle = document.getElementById('whatif-toggle') as HTMLButtonElement;
+    const whatifModal = document.getElementById('whatif-input-modal')!;
+    const whatifInput = document.getElementById('whatif-input') as HTMLInputElement;
+    const whatifAdd = document.getElementById('whatif-add') as HTMLButtonElement;
+    const whatifCancel = document.getElementById('whatif-cancel') as HTMLButtonElement;
+
+    let whatifMode = false;
+    let hypotheticalNodes = new Set<string>();
+
+    function nodeColor(ele: cytoscape.NodeSingular): string {
+      return COLORS[ele.data('type')] ?? COLORS.default;
+    }
+
+    // Build progress dots
+    function buildDots(count: number): void {
+      progressEl.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'tour-dot';
+        dot.dataset['index'] = String(i);
+        progressEl.appendChild(dot);
+      }
+    }
+
+    function updateDots(currentIndex: number, total: number): void {
+      progressEl.querySelectorAll('.tour-dot').forEach((dot, i) => {
+        dot.classList.remove('active', 'done');
+        if (i === currentIndex) dot.classList.add('active');
+        else if (i < currentIndex) dot.classList.add('done');
+      });
+      stepLabelEl.textContent = currentIndex >= 0
+        ? `${currentIndex + 1} / ${total}`
+        : `— / ${total}`;
+    }
+
+    function setNarration(text: string): void {
+      narrationTextEl.textContent = text;
+      narrationEl.classList.add('visible');
+    }
+
+    function clearNarration(): void {
+      narrationEl.classList.remove('visible');
+    }
+
+    function updatePlayBtn(playing: boolean): void {
+      // ▶ = play  ⏸ = pause  (use HTML entities for reliable rendering)
+      btnPlay.innerHTML = playing ? '&#9646;&#9646;' : '&#9654;';
+      btnPlay.title = playing ? 'Pause' : 'Play tour';
+    }
+
+    async function loadGraph() {
+      let data: { nodes: cytoscape.ElementDefinition[]; edges: cytoscape.ElementDefinition[]; error?: string };
+
+      try {
+        const res = await fetch(`https://curious-owl11--career-graph-api-web.modal.run/web/${clientId}`, {
+          headers: {
+            'Authorization': 'Bearer rachel-token-2024'
+          }
+        });
+        data = await res.json();
+      } catch (e) {
+        console.error('[constellation] fetch failed:', e);
+        data = { nodes: [], edges: [] };
+      }
+
+      loadingEl.style.display = 'none';
+
+      if (!data.nodes || data.nodes.length === 0) {
+        emptyEl.style.display = 'block';
+        countEl.textContent = '0 nodes';
+        // Still initialise tour UI even on empty graph
+        initTour(null);
+        return;
+      }
+
+      countEl.textContent = `${data.nodes.length} nodes · ${data.edges.length} edges`;
+
+      const cy = cytoscape({
+        container: document.getElementById('cy-container'),
+        elements: [...data.nodes, ...data.edges],
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'background-color': nodeColor as any,
+              'label': 'data(label)',
+              'color': '#e0e0ff',
+              'font-size': '11px',
+              'text-valign': 'bottom',
+              'text-halign': 'center',
+              'text-margin-y': 4,
+              'text-outline-color': '#0d0d1a',
+              'text-outline-width': '2px',
+              'width': (ele: cytoscape.NodeSingular) => ele.data('type') === 'Person' ? 28 : 18 as any,
+              'height': (ele: cytoscape.NodeSingular) => ele.data('type') === 'Person' ? 28 : 18 as any,
+              'border-width': 2,
+              'border-color': nodeColor as any,
+              'border-opacity': 0.8,
+            },
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 1.2,
+              'line-color': 'rgba(160,160,200,0.2)',
+              'target-arrow-color': 'rgba(160,160,200,0.2)',
+              'target-arrow-shape': 'triangle',
+              'curve-style': 'bezier',
+              'label': 'data(label)',
+              'font-size': '9px',
+              'color': 'rgba(160,160,200,0.4)',
+              'text-outline-color': '#0d0d1a',
+              'text-outline-width': '1.5px',
+              'arrow-scale': 0.7,
+            },
+          },
+          {
+            selector: '.dimmed',
+            style: { 'opacity': 0.1 },
+          },
+          {
+            selector: '.highlighted-edge',
+            style: {
+              'line-color': 'rgba(255,255,255,0.5)',
+              'target-arrow-color': 'rgba(255,255,255,0.5)',
+              'width': 2.5,
+              'opacity': 1,
+            },
+          },
+          {
+            selector: '.highlighted-node',
+            style: {
+              'border-width': 3.5,
+              'border-opacity': 1,
+              'opacity': 1,
+            },
+          },
+          // Tour-specific styles
+          {
+            selector: '.tour-dimmed',
+            style: { 'opacity': 0.08 },
+          },
+          {
+            selector: '.tour-target',
+            style: {
+              'opacity': 1,
+              'border-width': 5,
+              'border-opacity': 1,
+              'shadow-blur': 18,
+              'shadow-color': '#ffffff',
+              'shadow-opacity': 0.6,
+              'shadow-offset-x': 0,
+              'shadow-offset-y': 0,
+            },
+          },
+          {
+            selector: '.tour-highlight',
+            style: {
+              'opacity': 1,
+              'border-width': 3.5,
+              'border-opacity': 1,
+            },
+          },
+          // What-if mode styles
+          {
+            selector: '.hypothetical',
+            style: {
+              'border-style': 'dashed',
+              'border-width': 2.5,
+              'border-color': '#ffd700',
+              'background-color': 'rgba(255,215,0,0.25)',
+              'opacity': 0.9,
+            },
+          },
+          {
+            selector: '.gap-node',
+            style: {
+              'border-width': ((ele: cytoscape.NodeSingular) => {
+                const gapScore = ele.data('gapScore') ?? 0;
+                return 2 + (gapScore * 4);
+              }) as any,
+              'width': ((ele: cytoscape.NodeSingular) => {
+                const gapScore = ele.data('gapScore') ?? 0;
+                return 18 + (gapScore * 16);
+              }) as any,
+              'height': ((ele: cytoscape.NodeSingular) => {
+                const gapScore = ele.data('gapScore') ?? 0;
+                return 18 + (gapScore * 16);
+              }) as any,
+            },
+          },
+        ],
+        layout: {
+          name: 'cose',
+          animate: true,
+          animationDuration: 900,
+          nodeRepulsion: () => 9000,
+          idealEdgeLength: () => 130,
+          edgeElasticity: () => 100,
+          gravity: 0.3,
+          numIter: 1200,
+          fit: true,
+          padding: 60,
+        } as any,
+        minZoom: 0.15,
+        maxZoom: 4,
+        wheelSensitivity: 0.4,
+      });
+
+      // Hover interactions
+      cy.on('mouseover', 'node', (evt: any) => {
+        const node = evt.target as cytoscape.NodeSingular;
+        const connectedEdges = node.connectedEdges();
+        const connectedNodes = connectedEdges.connectedNodes();
+
+        cy.elements().addClass('dimmed');
+        connectedEdges.removeClass('dimmed').addClass('highlighted-edge');
+        connectedNodes.removeClass('dimmed').addClass('highlighted-node');
+        node.removeClass('dimmed').addClass('highlighted-node');
+      });
+
+      cy.on('mouseout', 'node', () => {
+        cy.elements().removeClass('dimmed highlighted-edge highlighted-node');
+      });
+
+      // Click to open detail panel
+      cy.on('tap', 'node', (evt: any) => {
+        const node = evt.target as cytoscape.NodeSingular;
+        const d = node.data();
+
+        nameEl.textContent = d.label;
+        const typeName: string = d.type ?? 'Unknown';
+        typeEl.innerHTML = `<span class="detail-badge badge-${typeName}">${typeName}</span>`;
+
+        const neighbors = node.neighborhood('node') as cytoscape.NodeCollection;
+        const edges = node.connectedEdges();
+
+        connList.innerHTML = '';
+        if (neighbors.length === 0) {
+          connList.innerHTML = '<li style="color:rgba(160,160,200,0.35);font-style:italic">No connections</li>';
+        } else {
+          neighbors.forEach((nb: cytoscape.NodeSingular) => {
+            const li = document.createElement('li');
+            const matchEdge = edges.filter((e: cytoscape.EdgeSingular) =>
+              e.data('source') === nb.id() || e.data('target') === nb.id()
+            ).first();
+            const rel: string = matchEdge?.data('label') ?? '';
+            li.textContent = rel ? `${nb.data('label')} — ${rel}` : nb.data('label');
+            connList.appendChild(li);
+          });
+        }
+
+        panel.classList.add('open');
+      });
+
+      // Tap on background: close panel
+      cy.on('tap', (evt: any) => {
+        if (evt.target === cy) {
+          panel.classList.remove('open');
+          cy.elements().removeClass('dimmed highlighted-edge highlighted-node');
+        }
+      });
+
+      closeBtn.addEventListener('click', () => {
+        panel.classList.remove('open');
+        cy.elements().removeClass('dimmed highlighted-edge highlighted-node');
+      });
+
+      // Setup view switcher and what-if mode
+      setupViewSwitcher(cy);
+      setupWhatIfMode(cy);
+
+      initTour(cy);
+    }
+
+    /**
+     * Get layout configuration for a given view
+     */
+    function getLayoutConfig(view: string): any {
+      switch (view) {
+        case 'constellation':
+          return {
+            name: 'cose',
+            animate: true,
+            animationDuration: 900,
+            nodeRepulsion: () => 9000,
+            idealEdgeLength: () => 130,
+            edgeElasticity: () => 100,
+            gravity: 0.3,
+            numIter: 1200,
+            fit: true,
+            padding: 60,
+          };
+
+        case 'tree':
+          return {
+            name: 'dagre',
+            rankDir: 'TB',
+            animate: true,
+            animationDuration: 900,
+            fit: true,
+            padding: 60,
+            nodeSep: 80,
+            rankSep: 120,
+          };
+
+        case 'circular':
+          return {
+            name: 'concentric',
+            animate: true,
+            animationDuration: 900,
+            fit: true,
+            padding: 60,
+            concentric: (node: cytoscape.NodeSingular) => {
+              // Person at center, Skills middle ring, Roles outer ring
+              const type = node.data('type');
+              if (type === 'Person') return 3;
+              if (type === 'Skill') return 2;
+              return 1;
+            },
+            levelWidth: () => 2,
+          };
+
+        case 'biofabric':
+        case 'arc':
+          // These use custom preset positioning
+          return {
+            name: 'preset',
+            animate: true,
+            animationDuration: 900,
+            fit: true,
+            padding: 60,
+          };
+
+        default:
+          return getLayoutConfig('constellation');
+      }
+    }
+
+    /**
+     * Apply custom position calculation for BioFabric layout
+     * Nodes arranged as horizontal lines, edges cross vertically
+     */
+    function applyBioFabricPositions(cy: cytoscape.Core): void {
+      const nodes = cy.nodes().toArray();
+      const nodeHeight = 40;
+      const startX = 100;
+
+      // Sort by degree (most connected first)
+      nodes.sort((a, b) => b.degree() - a.degree());
+
+      nodes.forEach((node, index) => {
+        node.position({
+          x: startX + (node.degree() * 60),
+          y: index * nodeHeight,
+        });
+      });
+    }
+
+    /**
+     * Apply custom position calculation for Arc Diagram
+     * Roles on x-axis chronologically, arcs show skill connections
+     */
+    function applyArcDiagramPositions(cy: cytoscape.Core): void {
+      const roles = cy.nodes('[type="Role"]').toArray();
+      const skills = cy.nodes('[type="Skill"]').toArray();
+      const people = cy.nodes('[type="Person"]').toArray();
+
+      const centerY = 300;
+      const roleY = centerY + 150;
+      const skillY = centerY - 100;
+      const personY = centerY;
+
+      // Position roles horizontally (chronologically if date available)
+      roles.forEach((role, index) => {
+        role.position({
+          x: 150 + (index * 180),
+          y: roleY,
+        });
+      });
+
+      // Position skills above
+      skills.forEach((skill, index) => {
+        skill.position({
+          x: 150 + (index * 140),
+          y: skillY,
+        });
+      });
+
+      // Position people in center
+      people.forEach((person, index) => {
+        person.position({
+          x: 150 + (index * 200),
+          y: personY,
+        });
+      });
+    }
+
+    /**
+     * Switch to a different layout view
+     */
+    function switchView(cy: cytoscape.Core, viewName: string): void {
+      // Apply custom positions for BioFabric and Arc before running preset layout
+      if (viewName === 'biofabric') {
+        applyBioFabricPositions(cy);
+      } else if (viewName === 'arc') {
+        applyArcDiagramPositions(cy);
+      }
+
+      const layout = cy.layout(getLayoutConfig(viewName));
+      layout.run();
+
+      // Update URL hash
+      window.location.hash = `view=${viewName}`;
+
+      // Update active button
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-view') === viewName);
+      });
+    }
+
+    /**
+     * Setup view switcher event listeners and restore from URL hash
+     */
+    function setupViewSwitcher(cy: cytoscape.Core): void {
+      const viewBtns = document.querySelectorAll('.view-btn');
+
+      viewBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const viewName = btn.getAttribute('data-view') ?? 'constellation';
+          switchView(cy, viewName);
+        });
+      });
+
+      // Restore view from URL hash
+      const hash = window.location.hash.slice(1);
+      const params = new URLSearchParams(hash);
+      const savedView = params.get('view');
+
+      if (savedView && ['constellation', 'tree', 'circular', 'biofabric', 'arc'].includes(savedView)) {
+        switchView(cy, savedView);
+      }
+    }
+
+    /**
+     * Setup what-if mode functionality
+     */
+    function setupWhatIfMode(cy: cytoscape.Core): void {
+      // Toggle what-if mode
+      whatifToggle.addEventListener('click', () => {
+        whatifMode = !whatifMode;
+        whatifToggle.classList.toggle('active', whatifMode);
+
+        if (!whatifMode) {
+          // Deactivate: remove all hypothetical nodes and reset
+          removeHypotheticalNodes(cy);
+          cy.elements().removeClass('gap-node');
+        } else {
+          // Activate: show gap nodes
+          highlightGapNodes(cy);
+        }
+      });
+
+      // Show input modal when clicking canvas in what-if mode
+      cy.on('tap', (evt: any) => {
+        if (whatifMode && evt.target === cy) {
+          whatifModal.classList.add('open');
+          whatifInput.value = '';
+          whatifInput.focus();
+        }
+      });
+
+      // Add hypothetical skill
+      whatifAdd.addEventListener('click', () => {
+        const skillName = whatifInput.value.trim();
+        if (skillName) {
+          addHypotheticalSkill(cy, skillName);
+          whatifModal.classList.remove('open');
+        }
+      });
+
+      // Cancel input
+      whatifCancel.addEventListener('click', () => {
+        whatifModal.classList.remove('open');
+      });
+
+      // Enter key to add
+      whatifInput.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          whatifAdd.click();
+        } else if (e.key === 'Escape') {
+          whatifCancel.click();
+        }
+      });
+    }
+
+    /**
+     * Add a hypothetical skill node and connect it to matching roles
+     */
+    function addHypotheticalSkill(cy: cytoscape.Core, skillName: string): void {
+      const hypotheticalId = `hypo-${Date.now()}`;
+      hypotheticalNodes.add(hypotheticalId);
+
+      // Add hypothetical node
+      cy.add({
+        group: 'nodes',
+        data: {
+          id: hypotheticalId,
+          label: skillName,
+          type: 'Skill',
+        },
+        classes: 'hypothetical',
+      });
+
+      // Connect to all Role nodes (simulating "this skill would unlock these roles")
+      const roles = cy.nodes('[type="Role"]');
+      roles.forEach((role: cytoscape.NodeSingular) => {
+        const edgeId = `${hypotheticalId}-UNLOCKS-${role.id()}`;
+        cy.add({
+          group: 'edges',
+          data: {
+            id: edgeId,
+            source: hypotheticalId,
+            target: role.id(),
+            label: 'UNLOCKS',
+          },
+          classes: 'hypothetical',
+        });
+      });
+
+      // Run layout to position the new node
+      const layout = cy.layout({
+        name: 'cose',
+        animate: true,
+        animationDuration: 600,
+        fit: false,
+        randomize: false,
+      });
+      layout.run();
+    }
+
+    /**
+     * Remove all hypothetical nodes and edges
+     */
+    function removeHypotheticalNodes(cy: cytoscape.Core): void {
+      cy.elements('.hypothetical').remove();
+      hypotheticalNodes.clear();
+    }
+
+    /**
+     * Highlight top gap nodes (skills with high gap scores)
+     */
+    function highlightGapNodes(cy: cytoscape.Core): void {
+      const skills = cy.nodes('[type="Skill"]').toArray();
+
+      // Sort by gap score
+      skills.sort((a, b) => {
+        const aScore = a.data('gapScore') ?? 0;
+        const bScore = b.data('gapScore') ?? 0;
+        return bScore - aScore;
+      });
+
+      // Highlight top 5 gap nodes
+      skills.slice(0, 5).forEach(node => {
+        node.addClass('gap-node');
+      });
+    }
+
+    function initTour(cy: any): void {
+      const keyframes = demoTour as any[];
+      buildDots(keyframes.length);
+      updateDots(-1, keyframes.length);
+
+      const engine = new TourEngine(cy ?? createStubCy(), keyframes, {
+        onStep(index, kf) {
+          updateDots(index, keyframes.length);
+          setNarration(kf.narration);
+          btnPrev.disabled = index <= 0;
+          btnNext.disabled = index >= keyframes.length - 1;
+        },
+        onPlay() {
+          updatePlayBtn(true);
+        },
+        onPause() {
+          updatePlayBtn(false);
+        },
+        onEnd() {
+          updatePlayBtn(false);
+          // Allow replay from end
+          btnPlay.disabled = false;
+        },
+      });
+
+      btnPlay.addEventListener('click', () => {
+        if (engine.isPlaying) {
+          engine.pause();
+        } else {
+          engine.play();
+        }
+      });
+
+      btnPrev.addEventListener('click', () => engine.prev());
+      btnNext.addEventListener('click', () => engine.next());
+      btnReplay.addEventListener('click', () => {
+        engine.reset();
+        // Small delay before restarting so reset visuals render
+        setTimeout(() => engine.play(), 80);
+      });
+    }
+
+    /** Minimal stub so the engine runs without a real cy instance (empty graph state) */
+    function createStubCy() {
+      return {
+        getElementById: () => ({ length: 0 }),
+        animate: () => {},
+        elements: () => ({
+          addClass: () => {},
+          removeClass: () => {},
+          forEach: () => {},
+        }),
+      };
+    }
+
+    // Register service worker for PWA support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then((registration) => {
+        console.log('[PWA] Service Worker registered:', registration.scope);
+      }).catch((error) => {
+        console.log('[PWA] Service Worker registration failed:', error);
+      });
+    }
+
+    loadGraph().catch(console.error);
+  </script>
+</body>
+</html>

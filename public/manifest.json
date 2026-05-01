@@ -1,0 +1,35 @@
+{
+  "name": "Career Constellation",
+  "short_name": "Constellation",
+  "description": "Interactive career graph visualization - skills, roles, and career pathways",
+  "start_url": "/web/rachel",
+  "display": "standalone",
+  "background_color": "#0d0d1a",
+  "theme_color": "#0d0d1a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "education", "business"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "My Career Graph",
+      "short_name": "Graph",
+      "description": "View your career constellation",
+      "url": "/web/rachel",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

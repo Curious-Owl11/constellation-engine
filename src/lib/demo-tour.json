@@ -1,0 +1,44 @@
+[
+  {
+    "nodeId": "rachel",
+    "zoom": 1.2,
+    "narration": "Welcome to Rachel's Career Constellation — a living map of skills, roles, and connections that define her professional journey.",
+    "highlightedNodeIds": [],
+    "duration": 6000
+  },
+  {
+    "nodeId": "role-product-manager",
+    "zoom": 1.8,
+    "narration": "Rachel's most recent role as Product Manager sits at the heart of the constellation, connecting strategy, execution, and people.",
+    "highlightedNodeIds": ["rachel", "skill-strategy", "skill-roadmapping"],
+    "duration": 6000
+  },
+  {
+    "nodeId": "skill-ai-automation",
+    "zoom": 2.2,
+    "narration": "AI & Automation is Rachel's emerging superpower — she has been building intelligent workflows and agentic systems to amplify her team's capacity.",
+    "highlightedNodeIds": ["skill-prompt-engineering", "skill-workflow-design"],
+    "duration": 6000
+  },
+  {
+    "nodeId": "role-operations-lead",
+    "zoom": 1.6,
+    "narration": "Before product, Rachel led Operations — this role forged her systems thinking and gave her a cross-functional view of the business.",
+    "highlightedNodeIds": ["skill-process-design", "skill-project-management", "rachel"],
+    "duration": 6000
+  },
+  {
+    "nodeId": "skill-leadership",
+    "zoom": 2.0,
+    "narration": "Leadership threads through every node in this constellation — Rachel brings teams together, translates vision to action, and makes complexity navigable.",
+    "highlightedNodeIds": ["rachel", "role-product-manager", "role-operations-lead"],
+    "duration": 6000
+  },
+  {
+    "nodeId": "rachel",
+    "zoom": 0.9,
+    "narration": "Zooming out, the full picture emerges: a career web built on curiosity, craft, and connection. This is Rachel's professional story.",
+    "highlightedNodeIds": [],
+    "duration": 0
+  }
+]

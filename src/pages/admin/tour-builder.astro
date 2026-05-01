@@ -1,0 +1,1120 @@
+---
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tour Builder — Constellation Engine</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0d0d1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    #header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      background: rgba(13, 13, 26, 0.92);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      gap: 14px;
+    }
+
+    #header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(220,220,255,0.85);
+      letter-spacing: 0.3px;
+    }
+
+    .header-badge {
+      font-size: 11px;
+      padding: 2px 9px;
+      border-radius: 10px;
+      background: rgba(160,196,255,0.1);
+      color: rgba(160,196,255,0.6);
+      border: 1px solid rgba(160,196,255,0.2);
+    }
+
+    #header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .action-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 7px;
+      padding: 6px 14px;
+      color: rgba(200,200,255,0.8);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+      letter-spacing: 0.2px;
+    }
+
+    .action-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: #ffffff;
+    }
+
+    .action-btn.preview-btn {
+      background: rgba(160,196,255,0.12);
+      border-color: rgba(160,196,255,0.25);
+      color: #a0c4ff;
+    }
+
+    .action-btn.preview-btn:hover {
+      background: rgba(160,196,255,0.22);
+    }
+
+    .action-btn.preview-btn.active {
+      background: rgba(160,196,255,0.25);
+      border-color: rgba(160,196,255,0.5);
+      box-shadow: 0 0 12px rgba(160,196,255,0.2);
+    }
+
+    .action-btn.save-btn {
+      background: rgba(64,224,160,0.12);
+      border-color: rgba(64,224,160,0.25);
+      color: #40e0a0;
+    }
+
+    .action-btn.save-btn:hover {
+      background: rgba(64,224,160,0.22);
+    }
+
+    /* ── Main layout ── */
+    #app {
+      display: flex;
+      height: 100vh;
+      padding-top: 48px;
+    }
+
+    /* ── Graph pane ── */
+    #graph-pane {
+      flex: 0 0 60%;
+      position: relative;
+      height: 100%;
+      background: #0d0d1a;
+    }
+
+    #cy {
+      width: 100%;
+      height: 100%;
+    }
+
+    #graph-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(10,10,22,0.85);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: rgba(200,200,255,0.65);
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+      line-height: 1.5;
+    }
+
+    #graph-overlay.highlight-mode {
+      color: #ffd700;
+      border-color: rgba(255,215,0,0.35);
+      background: rgba(30,20,0,0.88);
+    }
+
+    #graph-loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(180,180,220,0.35);
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Tour stops panel ── */
+    #stops-pane {
+      flex: 0 0 40%;
+      height: 100%;
+      background: rgba(13,13,26,0.97);
+      border-left: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #stops-header {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+
+    #stops-header h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(220,220,255,0.75);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    #stops-subtitle {
+      font-size: 11px;
+      color: rgba(140,140,180,0.5);
+      margin-top: 3px;
+    }
+
+    #stops-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #stops-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #stops-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #stops-list::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+    }
+
+    #stops-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(140,140,180,0.35);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    /* ── Stop card ── */
+    .stop-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 12px 14px;
+      position: relative;
+      cursor: grab;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .stop-card:active {
+      cursor: grabbing;
+    }
+
+    .stop-card.sortable-ghost {
+      opacity: 0.35;
+    }
+
+    .stop-card.sortable-chosen {
+      border-color: rgba(160,196,255,0.3);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .stop-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stop-index {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(160,196,255,0.15);
+      border: 1px solid rgba(160,196,255,0.3);
+      font-size: 10px;
+      font-weight: 700;
+      color: #a0c4ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .stop-node-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(220,220,255,0.9);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stop-node-id {
+      font-size: 10px;
+      color: rgba(140,140,180,0.45);
+      font-family: monospace;
+    }
+
+    .stop-remove-btn {
+      background: none;
+      border: none;
+      color: rgba(200,100,100,0.4);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.2s, background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .stop-remove-btn:hover {
+      color: rgba(255,120,120,0.9);
+      background: rgba(255,100,100,0.1);
+    }
+
+    .stop-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stop-field-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(140,140,180,0.5);
+      margin-bottom: 4px;
+    }
+
+    .stop-narration {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 5px;
+      padding: 7px 10px;
+      color: rgba(220,220,255,0.9);
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+      transition: border-color 0.2s;
+    }
+
+    .stop-narration:focus {
+      outline: none;
+      border-color: rgba(160,196,255,0.35);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .stop-duration-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stop-duration {
+      width: 72px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 5px;
+      padding: 5px 8px;
+      color: rgba(220,220,255,0.9);
+      font-size: 12px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .stop-duration:focus {
+      outline: none;
+      border-color: rgba(160,196,255,0.35);
+    }
+
+    .stop-duration-unit {
+      font-size: 11px;
+      color: rgba(140,140,180,0.45);
+    }
+
+    .stop-highlights-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 5px;
+      padding: 5px 10px;
+      color: rgba(200,200,255,0.65);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .stop-highlights-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: rgba(220,220,255,0.9);
+    }
+
+    .stop-highlights-btn.picking {
+      background: rgba(255,215,0,0.12);
+      border-color: rgba(255,215,0,0.3);
+      color: #ffd700;
+    }
+
+    .stop-highlights-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .highlight-chip {
+      background: rgba(64,224,208,0.1);
+      border: 1px solid rgba(64,224,208,0.25);
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 10px;
+      color: #40e0d0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .highlight-chip-remove {
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.15s;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .highlight-chip-remove:hover {
+      opacity: 1;
+    }
+
+    /* ── Preview narration overlay ── */
+    #preview-narration {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 400px;
+      width: calc(100% - 40px);
+      background: rgba(10,10,22,0.90);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      padding: 14px 18px;
+      backdrop-filter: blur(12px);
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    #preview-narration.visible {
+      opacity: 1;
+    }
+
+    #preview-narration-text {
+      font-size: 13px;
+      line-height: 1.65;
+      color: rgba(220,220,255,0.90);
+    }
+
+    #preview-step-label {
+      font-size: 10px;
+      color: rgba(160,196,255,0.55);
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    #preview-controls {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: rgba(10,10,22,0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 40px;
+      padding: 8px 18px;
+      backdrop-filter: blur(12px);
+      z-index: 50;
+    }
+
+    #preview-controls.visible {
+      display: flex;
+    }
+
+    .preview-ctrl-btn {
+      background: none;
+      border: none;
+      color: rgba(200,200,255,0.7);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .preview-ctrl-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .preview-ctrl-btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+      background: none;
+    }
+
+    /* ── Cytoscape tour classes ── */
+    /* (injected via stylesheet) */
+
+    /* ── Load input hidden ── */
+    #load-input {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="header">
+    <h1>Tour Builder</h1>
+    <span class="header-badge">Admin</span>
+    <div id="header-actions">
+      <button class="action-btn" id="load-btn">Load JSON</button>
+      <input type="file" id="load-input" accept=".json" />
+      <button class="action-btn preview-btn" id="preview-btn">Preview Tour</button>
+      <button class="action-btn save-btn" id="save-btn">Save JSON</button>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div id="app">
+
+    <!-- Graph pane -->
+    <div id="graph-pane">
+      <div id="cy"></div>
+      <div id="graph-overlay">Click a node to add a tour stop</div>
+      <div id="graph-loading">Loading graph…</div>
+
+      <!-- Preview overlays -->
+      <div id="preview-controls">
+        <button class="preview-ctrl-btn" id="prev-btn" title="Previous">&#9664;</button>
+        <button class="preview-ctrl-btn" id="play-pause-btn" title="Play">&#9654;</button>
+        <button class="preview-ctrl-btn" id="next-btn" title="Next">&#9654;&#9654;</button>
+        <span style="width:1px;height:16px;background:rgba(255,255,255,0.12);margin:0 4px;"></span>
+        <button class="preview-ctrl-btn" id="stop-preview-btn" title="Stop preview" style="font-size:13px;color:rgba(255,120,120,0.7)">&#9632; Stop</button>
+      </div>
+      <div id="preview-narration">
+        <div id="preview-step-label"></div>
+        <div id="preview-narration-text"></div>
+      </div>
+    </div>
+
+    <!-- Tour stops panel -->
+    <div id="stops-pane">
+      <div id="stops-header">
+        <h2>Tour Stops</h2>
+        <div id="stops-subtitle">0 stops &mdash; drag to reorder</div>
+      </div>
+      <div id="stops-list">
+        <div id="stops-empty">
+          Click any node in the graph<br>to add it as a tour stop.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Imports ──────────────────────────────────────────────────────────────
+    import cytoscape from 'cytoscape';
+    import Sortable from 'sortablejs';
+    import { TourEngine } from '../../lib/tour-engine';
+    import type { TourKeyframe } from '../../lib/tour-engine';
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let cy: any = null;
+    let tourEngine: TourEngine | null = null;
+    let isPreviewing = false;
+
+    // highlight-pick mode: index of the stop we're picking highlights for, or -1
+    let pickingHighlightFor: number = -1;
+
+    interface Stop extends TourKeyframe {
+      _nodeLabel: string;
+    }
+
+    let stops: Stop[] = [];
+
+    // nodeId -> label map populated after graph load
+    const nodeLabels: Record<string, string> = {};
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const stopsList = document.getElementById('stops-list') as HTMLElement;
+    const stopsEmpty = document.getElementById('stops-empty') as HTMLElement;
+    const stopsSubtitle = document.getElementById('stops-subtitle') as HTMLElement;
+    const graphOverlay = document.getElementById('graph-overlay') as HTMLElement;
+    const graphLoading = document.getElementById('graph-loading') as HTMLElement;
+    const previewBtn = document.getElementById('preview-btn') as HTMLButtonElement;
+    const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
+    const loadBtn = document.getElementById('load-btn') as HTMLButtonElement;
+    const loadInput = document.getElementById('load-input') as HTMLInputElement;
+    const previewControls = document.getElementById('preview-controls') as HTMLElement;
+    const previewNarration = document.getElementById('preview-narration') as HTMLElement;
+    const previewNarrationText = document.getElementById('preview-narration-text') as HTMLElement;
+    const previewStepLabel = document.getElementById('preview-step-label') as HTMLElement;
+    const prevBtn = document.getElementById('prev-btn') as HTMLButtonElement;
+    const playPauseBtn = document.getElementById('play-pause-btn') as HTMLButtonElement;
+    const nextBtn = document.getElementById('next-btn') as HTMLButtonElement;
+    const stopPreviewBtn = document.getElementById('stop-preview-btn') as HTMLButtonElement;
+
+    // ── Cytoscape init ────────────────────────────────────────────────────────
+    cy = cytoscape({
+      container: document.getElementById('cy'),
+      style: [
+        {
+          selector: 'node',
+          style: {
+            'background-color': '#1e1e3a',
+            'border-width': 2,
+            'border-color': 'rgba(255,255,255,0.15)',
+            'label': 'data(label)',
+            'color': 'rgba(220,220,255,0.85)',
+            'font-size': '11px',
+            'text-valign': 'bottom',
+            'text-halign': 'center',
+            'text-margin-y': 5,
+            'width': 28,
+            'height': 28,
+          }
+        },
+        {
+          selector: 'node[type = "Person"]',
+          style: {
+            'background-color': '#2a2010',
+            'border-color': '#f0c040',
+            'border-width': 2.5,
+            'width': 40,
+            'height': 40,
+          }
+        },
+        {
+          selector: 'node[type = "Skill"]',
+          style: {
+            'background-color': '#0a2020',
+            'border-color': '#40e0d0',
+            'border-width': 2,
+          }
+        },
+        {
+          selector: 'node[type = "Role"]',
+          style: {
+            'background-color': '#18102a',
+            'border-color': '#9370db',
+            'border-width': 2,
+          }
+        },
+        {
+          selector: 'edge',
+          style: {
+            'line-color': 'rgba(255,255,255,0.08)',
+            'width': 1,
+            'curve-style': 'bezier',
+            'target-arrow-shape': 'none',
+          }
+        },
+        // Tour classes
+        {
+          selector: '.tour-dimmed',
+          style: {
+            'opacity': 0.12,
+          }
+        },
+        {
+          selector: '.tour-target',
+          style: {
+            'border-width': 3,
+            'border-color': '#a0c4ff',
+            'background-color': '#0a122a',
+            'opacity': 1,
+          }
+        },
+        {
+          selector: '.tour-highlight',
+          style: {
+            'opacity': 0.9,
+          }
+        },
+        // Builder: node picked as highlight
+        {
+          selector: '.pick-highlight',
+          style: {
+            'border-color': '#ffd700',
+            'border-width': 3,
+            'background-color': '#201800',
+          }
+        },
+        // Builder: node is a stop
+        {
+          selector: '.is-stop',
+          style: {
+            'border-color': '#a0c4ff',
+            'border-width': 2.5,
+          }
+        },
+      ],
+      layout: { name: 'preset' },
+      userZoomingEnabled: true,
+      userPanningEnabled: true,
+      boxSelectionEnabled: false,
+    });
+
+    // ── Load graph data ───────────────────────────────────────────────────────
+    async function loadGraph() {
+      try {
+        const res = await fetch('/api/graph/rachel');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        graphLoading.style.display = 'none';
+
+        // Build label map
+        if (data.nodes) {
+          data.nodes.forEach((n: any) => {
+            const id = n.data?.id ?? n.id;
+            const label = n.data?.label ?? n.data?.name ?? id;
+            nodeLabels[id] = label;
+          });
+        }
+
+        cy.add(data.nodes ?? []);
+        cy.add(data.edges ?? []);
+
+        // Layout
+        cy.layout({
+          name: 'cose',
+          animate: false,
+          randomize: false,
+          nodeRepulsion: () => 8000,
+          idealEdgeLength: () => 100,
+          gravity: 0.3,
+        }).run();
+
+        cy.fit(undefined, 40);
+      } catch (err) {
+        graphLoading.textContent = 'Failed to load graph';
+        console.error('Graph load error:', err);
+      }
+    }
+
+    loadGraph();
+
+    // ── Node click handler ────────────────────────────────────────────────────
+    cy.on('tap', 'node', (evt: any) => {
+      const node = evt.target;
+      const nodeId: string = node.id();
+      const nodeLabel: string = node.data('label') ?? node.data('name') ?? nodeId;
+
+      if (isPreviewing) return;
+
+      if (pickingHighlightFor >= 0) {
+        // Highlight-pick mode
+        const stop = stops[pickingHighlightFor];
+        if (!stop) return;
+        if (nodeId === stop.nodeId) return; // Don't add the main node as highlight
+        if (stop.highlightedNodeIds.includes(nodeId)) {
+          // Toggle off
+          stop.highlightedNodeIds = stop.highlightedNodeIds.filter(id => id !== nodeId);
+          node.removeClass('pick-highlight');
+        } else {
+          stop.highlightedNodeIds.push(nodeId);
+          node.addClass('pick-highlight');
+        }
+        renderStops();
+        return;
+      }
+
+      // Normal mode: add as new stop
+      nodeLabels[nodeId] = nodeLabel;
+      const newStop: Stop = {
+        nodeId,
+        zoom: 1.5,
+        narration: '',
+        highlightedNodeIds: [],
+        duration: 5000,
+        _nodeLabel: nodeLabel,
+      };
+      stops.push(newStop);
+      node.addClass('is-stop');
+      renderStops();
+    });
+
+    // ── Render stops ─────────────────────────────────────────────────────────
+    function renderStops() {
+      // Clear list (except empty placeholder)
+      const cards = stopsList.querySelectorAll('.stop-card');
+      cards.forEach(c => c.remove());
+
+      if (stops.length === 0) {
+        stopsEmpty.style.display = '';
+        stopsSubtitle.textContent = '0 stops — drag to reorder';
+        return;
+      }
+
+      stopsEmpty.style.display = 'none';
+      stopsSubtitle.textContent = `${stops.length} stop${stops.length === 1 ? '' : 's'} — drag to reorder`;
+
+      stops.forEach((stop, idx) => {
+        const card = document.createElement('div');
+        card.className = 'stop-card';
+        card.dataset.idx = String(idx);
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'stop-card-header';
+
+        const indexEl = document.createElement('div');
+        indexEl.className = 'stop-index';
+        indexEl.textContent = String(idx + 1);
+
+        const labelEl = document.createElement('div');
+        labelEl.className = 'stop-node-label';
+        labelEl.title = stop.nodeId;
+        labelEl.textContent = stop._nodeLabel || stop.nodeId;
+
+        const nodeIdEl = document.createElement('div');
+        nodeIdEl.className = 'stop-node-id';
+        nodeIdEl.textContent = stop.nodeId;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'stop-remove-btn';
+        removeBtn.title = 'Remove stop';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.addEventListener('click', () => {
+          // Exit highlight-pick mode if it was for this stop
+          if (pickingHighlightFor === idx) {
+            exitHighlightPickMode();
+          }
+          stops.splice(idx, 1);
+          refreshStopClasses();
+          renderStops();
+        });
+
+        header.append(indexEl, labelEl, nodeIdEl, removeBtn);
+
+        // Fields
+        const fields = document.createElement('div');
+        fields.className = 'stop-fields';
+
+        // Narration
+        const narrationLabel = document.createElement('div');
+        narrationLabel.className = 'stop-field-label';
+        narrationLabel.textContent = 'Narration';
+
+        const narrationTA = document.createElement('textarea');
+        narrationTA.className = 'stop-narration';
+        narrationTA.placeholder = 'Describe this stop…';
+        narrationTA.value = stop.narration;
+        narrationTA.addEventListener('input', () => {
+          stops[idx].narration = narrationTA.value;
+        });
+
+        // Duration row
+        const durationLabel = document.createElement('div');
+        durationLabel.className = 'stop-field-label';
+        durationLabel.textContent = 'Duration';
+
+        const durationRow = document.createElement('div');
+        durationRow.className = 'stop-duration-row';
+
+        const durationInput = document.createElement('input');
+        durationInput.type = 'number';
+        durationInput.className = 'stop-duration';
+        durationInput.min = '0';
+        durationInput.step = '1';
+        durationInput.value = String(Math.round(stop.duration / 1000));
+        durationInput.title = 'Duration in seconds (0 = manual advance)';
+        durationInput.addEventListener('input', () => {
+          stops[idx].duration = (parseFloat(durationInput.value) || 0) * 1000;
+        });
+
+        const durationUnit = document.createElement('span');
+        durationUnit.className = 'stop-duration-unit';
+        durationUnit.textContent = 'seconds (0 = manual)';
+
+        durationRow.append(durationInput, durationUnit);
+
+        // Highlights
+        const highlightsLabel = document.createElement('div');
+        highlightsLabel.className = 'stop-field-label';
+        highlightsLabel.textContent = 'Highlighted Nodes';
+
+        const highlightsBtn = document.createElement('button');
+        highlightsBtn.className = 'stop-highlights-btn' + (pickingHighlightFor === idx ? ' picking' : '');
+        highlightsBtn.textContent = pickingHighlightFor === idx
+          ? '⭐ Click nodes to toggle… (done)'
+          : '+ Add highlights';
+        highlightsBtn.addEventListener('click', () => {
+          if (pickingHighlightFor === idx) {
+            exitHighlightPickMode();
+          } else {
+            enterHighlightPickMode(idx);
+          }
+        });
+
+        const chipsContainer = document.createElement('div');
+        chipsContainer.className = 'stop-highlights-chips';
+
+        stop.highlightedNodeIds.forEach(hId => {
+          const chip = document.createElement('div');
+          chip.className = 'highlight-chip';
+          const label = nodeLabels[hId] || hId;
+          chip.innerHTML = `<span>${label}</span><span class="highlight-chip-remove" title="Remove">×</span>`;
+          chip.querySelector('.highlight-chip-remove')!.addEventListener('click', () => {
+            stops[idx].highlightedNodeIds = stops[idx].highlightedNodeIds.filter(id => id !== hId);
+            cy.getElementById(hId).removeClass('pick-highlight');
+            renderStops();
+          });
+          chipsContainer.appendChild(chip);
+        });
+
+        fields.append(
+          narrationLabel, narrationTA,
+          durationLabel, durationRow,
+          highlightsLabel, highlightsBtn, chipsContainer
+        );
+
+        card.append(header, fields);
+        stopsList.appendChild(card);
+      });
+    }
+
+    // ── Highlight pick mode ───────────────────────────────────────────────────
+    function enterHighlightPickMode(idx: number) {
+      exitHighlightPickMode(); // clean any previous
+      pickingHighlightFor = idx;
+      graphOverlay.textContent = 'Highlight pick mode — click nodes to toggle highlights. Click "done" in the panel when finished.';
+      graphOverlay.classList.add('highlight-mode');
+
+      // Show existing highlights on graph
+      const stop = stops[idx];
+      stop.highlightedNodeIds.forEach(id => {
+        cy.getElementById(id).addClass('pick-highlight');
+      });
+
+      renderStops();
+    }
+
+    function exitHighlightPickMode() {
+      if (pickingHighlightFor < 0) return;
+      // Remove all pick-highlight classes
+      cy.elements().removeClass('pick-highlight');
+      pickingHighlightFor = -1;
+      graphOverlay.textContent = 'Click a node to add a tour stop';
+      graphOverlay.classList.remove('highlight-mode');
+      renderStops();
+    }
+
+    // ── Stop classes on graph ─────────────────────────────────────────────────
+    function refreshStopClasses() {
+      cy.nodes().removeClass('is-stop');
+      stops.forEach(s => {
+        cy.getElementById(s.nodeId).addClass('is-stop');
+      });
+    }
+
+    // ── Sortable (drag-to-reorder) ────────────────────────────────────────────
+    Sortable.create(stopsList, {
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      filter: 'input, textarea, button',
+      preventOnFilter: false,
+      onEnd(evt: any) {
+        const from = evt.oldIndex;
+        const to = evt.newIndex;
+        if (from === to || from == null || to == null) return;
+
+        // Adjust indices: stopsEmpty div is first child when stops.length === 0
+        // When stops > 0, stopsEmpty is hidden but still in DOM
+        // We need the DOM index relative to stop-card elements only
+        const [moved] = stops.splice(from, 1);
+        stops.splice(to, 0, moved);
+
+        // If we were picking highlights for a stop, adjust index
+        if (pickingHighlightFor >= 0) {
+          if (pickingHighlightFor === from) {
+            pickingHighlightFor = to;
+          } else if (from < pickingHighlightFor && to >= pickingHighlightFor) {
+            pickingHighlightFor--;
+          } else if (from > pickingHighlightFor && to <= pickingHighlightFor) {
+            pickingHighlightFor++;
+          }
+        }
+
+        renderStops();
+      },
+    });
+
+    // ── Preview ───────────────────────────────────────────────────────────────
+    previewBtn.addEventListener('click', () => {
+      if (isPreviewing) {
+        stopPreview();
+        return;
+      }
+      if (stops.length === 0) {
+        alert('Add at least one tour stop before previewing.');
+        return;
+      }
+      startPreview();
+    });
+
+    function startPreview() {
+      isPreviewing = true;
+      exitHighlightPickMode();
+      previewBtn.textContent = 'Stop Preview';
+      previewBtn.classList.add('active');
+      previewControls.classList.add('visible');
+
+      const keyframes: TourKeyframe[] = stops.map(s => ({
+        nodeId: s.nodeId,
+        zoom: s.zoom,
+        narration: s.narration,
+        highlightedNodeIds: s.highlightedNodeIds,
+        duration: s.duration,
+      }));
+
+      tourEngine = new TourEngine(cy, keyframes, {
+        onStep(index, kf) {
+          previewStepLabel.textContent = `Step ${index + 1} of ${keyframes.length}`;
+          previewNarrationText.textContent = kf.narration || '(no narration)';
+          previewNarration.classList.add('visible');
+          prevBtn.disabled = index === 0;
+          nextBtn.disabled = index === keyframes.length - 1;
+          updatePlayPauseBtn();
+        },
+        onPlay() { updatePlayPauseBtn(); },
+        onPause() { updatePlayPauseBtn(); },
+        onEnd() {
+          updatePlayPauseBtn();
+        },
+      });
+
+      tourEngine.play();
+    }
+
+    function stopPreview() {
+      if (tourEngine) {
+        tourEngine.reset();
+        tourEngine = null;
+      }
+      isPreviewing = false;
+      previewBtn.textContent = 'Preview Tour';
+      previewBtn.classList.remove('active');
+      previewControls.classList.remove('visible');
+      previewNarration.classList.remove('visible');
+    }
+
+    function updatePlayPauseBtn() {
+      if (!tourEngine) return;
+      playPauseBtn.innerHTML = tourEngine.isPlaying ? '&#9646;&#9646;' : '&#9654;';
+      playPauseBtn.title = tourEngine.isPlaying ? 'Pause' : 'Play';
+    }
+
+    prevBtn.addEventListener('click', () => tourEngine?.prev());
+    nextBtn.addEventListener('click', () => tourEngine?.next());
+    stopPreviewBtn.addEventListener('click', stopPreview);
+    playPauseBtn.addEventListener('click', () => {
+      if (!tourEngine) return;
+      if (tourEngine.isPlaying) {
+        tourEngine.pause();
+      } else {
+        tourEngine.play();
+      }
+    });
+
+    // ── Save ──────────────────────────────────────────────────────────────────
+    saveBtn.addEventListener('click', () => {
+      if (stops.length === 0) {
+        alert('No tour stops to save.');
+        return;
+      }
+      const keyframes: TourKeyframe[] = stops.map(s => ({
+        nodeId: s.nodeId,
+        zoom: s.zoom,
+        narration: s.narration,
+        highlightedNodeIds: s.highlightedNodeIds,
+        duration: s.duration,
+      }));
+      const json = JSON.stringify(keyframes, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tour.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // ── Load ──────────────────────────────────────────────────────────────────
+    loadBtn.addEventListener('click', () => {
+      loadInput.value = '';
+      loadInput.click();
+    });
+
+    loadInput.addEventListener('change', () => {
+      const file = loadInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target?.result as string) as TourKeyframe[];
+          if (!Array.isArray(parsed)) throw new Error('Expected an array');
+          stops = parsed.map(kf => ({
+            ...kf,
+            _nodeLabel: nodeLabels[kf.nodeId] || kf.nodeId,
+          }));
+          exitHighlightPickMode();
+          refreshStopClasses();
+          renderStops();
+        } catch (err) {
+          alert('Invalid tour JSON: ' + (err as Error).message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // ── Initial render ────────────────────────────────────────────────────────
+    renderStops();
+  </script>
+</body>
+</html>
