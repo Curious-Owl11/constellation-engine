@@ -646,7 +646,7 @@ export function getStaticPaths() {
       let data: { nodes: cytoscape.ElementDefinition[]; edges: cytoscape.ElementDefinition[]; error?: string };
 
       try {
-        const res = await fetch(`https://curious-owl11--career-graph-api-web.modal.run/web/${clientId}`, {
+        const res = await fetch(`https://curious-owl11--liflode-gateway-api.modal.run/career/web/${clientId}`, {
           headers: {
             'Authorization': 'Bearer rachel-token-2024'
           }
